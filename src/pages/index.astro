@@ -1,11 +1,311 @@
 ---
-import Welcome from '../components/Welcome.astro';
-import Layout from '../layouts/Layout.astro';
+// Editá solo este bloque con los datos reales
+const D = {
+  nombre: "Pilar Guillermina",
+  fecha: "2026-11-07T18:00:00-03:00",
+  lugar: "Salón El Sauce",
+  direccion: "Fray Justo Santa María de Oro Sur 1836, Rivadavia, San Juan",
+  coordenadas: "-31.5511773,-68.562239",
+  whatsapp: "5492645477725",
+  confirmarAntesDe: "4 de noviembre",
+  firma: "Con mucho cariño",
+  musica: "/musica.mp3",
+};
 
-// Welcome to Astro! Wondering what to do next? Check out the Astro documentation at https://docs.astro.build
-// Don't want to use any of this? Delete everything in this file, the `assets`, `components`, and `layouts` directories, and start fresh.
+const fecha = new Date(D.fecha);
+const fin = new Date(fecha.getTime() + 3 * 3600000);
+const tz = "America/Argentina/San_Juan";
+const optsHora = { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz };
+const dia = fecha.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: tz });
+const hora = fecha.toLocaleTimeString("es-AR", optsHora) + " a " + fin.toLocaleTimeString("es-AR", optsHora);
+const cuando = dia.charAt(0).toUpperCase() + dia.slice(1);
+const q = encodeURIComponent(D.lugar + ", " + D.direccion);
+const mapaEmbed = "https://www.google.com/maps?q=" + q + "&output=embed";
+const mapaLink = "https://www.google.com/maps/search/?api=1&query=" + q;
+const waze = "https://waze.com/ul?ll=" + D.coordenadas + "&navigate=yes";
+const wsp = "https://wa.me/" + D.whatsapp;
 ---
 
-<Layout>
-	<Welcome />
-</Layout>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Baby Shower de {D.nombre}</title>
+    <meta property="og:title" content={`Baby Shower de ${D.nombre}`} />
+    <meta property="og:description" content={`${cuando}, ${hora} hs · ${D.lugar}`} />
+    <!-- Cuando tengas el link de Netlify, cambiá por https://TU-SITIO.netlify.app/osito.jpg -->
+    <meta property="og:image" content="/osito.jpg" />
+    <meta name="theme-color" content="#fff7f5" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  </head>
+  <body class="locked">
+    <audio id="musica" src={D.musica} loop preload="auto"></audio>
+
+    <!-- Pantalla de bienvenida -->
+    <section id="intro" class="intro">
+      <img class="osito" src="/osito.jpg" alt="Osita con moño rosa y globos" />
+      <p class="kicker">Estás invitada/o al</p>
+      <p class="sub"><span class="heart">♥</span> Baby Shower <span class="heart">♥</span></p>
+      <h1 class="nombre">{D.nombre}</h1>
+      <button id="entrar" class="btn" type="button">Ingresar</button>
+      <p class="nota">Esta invitación tiene música</p>
+    </section>
+
+    <button id="toggle" class="toggle" type="button" aria-pressed="false" hidden>
+      <span class="ico">♪</span><span id="toggleTxt">Música</span>
+    </button>
+
+    <main>
+      <header class="hero">
+        <img class="osito" src="/osito.jpg" alt="" />
+        <h2 class="nombre">{D.nombre}</h2>
+        <p class="sub"><span class="heart">♥</span> Baby Shower <span class="heart">♥</span></p>
+        <p class="lead">Una nueva vida está por llegar y queremos compartir esta alegría con vos.</p>
+      </header>
+
+      <section class="card count" aria-label="Cuenta regresiva">
+        <p class="cap">Faltan</p>
+        <div class="tiempo" id="tiempo">
+          <div><b id="cd">0</b><span>días</span></div>
+          <div><b id="ch">0</b><span>horas</span></div>
+          <div><b id="cm">0</b><span>min</span></div>
+          <div><b id="cs">0</b><span>seg</span></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Cuándo</h3>
+        <p class="grande">{cuando}</p>
+        <p>{hora} hs</p>
+        <a id="cal" class="btn alt" href="#" target="_blank" rel="noopener">Agregar al calendario</a>
+      </section>
+
+      <section class="card">
+        <h3>Dónde</h3>
+        <p class="grande">{D.lugar}</p>
+        <p>{D.direccion}</p>
+        <div class="mapa">
+          <iframe title="Mapa del lugar" src={mapaEmbed} loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe>
+        </div>
+        <div class="btns">
+          <a class="btn" href={mapaLink} target="_blank" rel="noopener">Google Maps</a>
+          <a class="btn alt" href={waze} target="_blank" rel="noopener">Waze</a>
+        </div>
+      </section>
+
+      <section class="card" id="confirmar">
+        <h3>Confirmá tu asistencia</h3>
+        <p class="peq">Avisanos antes del {D.confirmarAntesDe}.</p>
+
+        <form id="rsvp" name="rsvp" method="POST" data-netlify="true" netlify-honeypot="bot-field">
+          <input type="hidden" name="form-name" value="rsvp" />
+          <p hidden><label>No completar <input name="bot-field" /></label></p>
+
+          <label for="nom">Tu nombre</label>
+          <input id="nom" name="nombre" type="text" autocomplete="name" required />
+
+          <fieldset>
+            <legend>¿Venís?</legend>
+            <label class="op"><input type="radio" name="asistencia" value="Sí" checked /> ¡Sí, voy!</label>
+            <label class="op"><input type="radio" name="asistencia" value="No" /> No puedo</label>
+          </fieldset>
+
+          <label for="cant">¿Cuántas personas son?</label>
+          <select id="cant" name="personas">
+            <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+          </select>
+
+          <label for="msj">Un mensaje para la mamá y el bebé (opcional)</label>
+          <textarea id="msj" name="mensaje" rows="3"></textarea>
+
+          <button class="btn" type="submit">Enviar confirmación</button>
+          <p id="estado" class="estado" role="status" hidden></p>
+        </form>
+      </section>
+
+      <footer class="foot">
+        <p>{D.firma}</p>
+        <p class="peq">¿Alguna duda? <a href={wsp} target="_blank" rel="noopener">Escribinos por WhatsApp</a></p>
+      </footer>
+    </main>
+
+    <script define:vars={{ fechaISO: D.fecha, titulo: "Baby Shower de " + D.nombre, lugarCompleto: D.lugar + ", " + D.direccion }}>
+      var $ = function (id) { return document.getElementById(id); };
+      var audio = $("musica"), toggle = $("toggle"), intro = $("intro");
+      var fecha = new Date(fechaISO);
+
+      // Calendario
+      function fmt(d) { return d.toISOString().replace(/[-:]|\.\d{3}/g, ""); }
+      var fin = new Date(fecha.getTime() + 3 * 3600000);
+      $("cal").href = "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(titulo) +
+        "&dates=" + fmt(fecha) + "/" + fmt(fin) + "&location=" + encodeURIComponent(lugarCompleto);
+
+      // Cuenta regresiva
+      function tick() {
+        var ms = fecha - new Date();
+        if (ms <= 0) { $("tiempo").innerHTML = "<p class='grande'>¡Hoy es el día!</p>"; return; }
+        $("cd").textContent = Math.floor(ms / 86400000);
+        $("ch").textContent = Math.floor(ms / 3600000) % 24;
+        $("cm").textContent = Math.floor(ms / 60000) % 60;
+        $("cs").textContent = Math.floor(ms / 1000) % 60;
+      }
+      tick(); setInterval(tick, 1000);
+
+      // Música
+      function setMusica(on) {
+        toggle.classList.toggle("on", on);
+        toggle.setAttribute("aria-pressed", on ? "true" : "false");
+        $("toggleTxt").textContent = on ? "Música" : "Silenciada";
+      }
+      audio.addEventListener("error", function () { toggle.hidden = true; });
+      toggle.addEventListener("click", function () {
+        if (audio.paused) { audio.play().then(function () { setMusica(true); }).catch(function () {}); }
+        else { audio.pause(); setMusica(false); }
+      });
+
+      // Globos al ingresar
+      function globos() {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        var cols = ["#f6a5b8", "#f08aa4", "#fbd0da", "#f9b8c6", "#ffe3e9"];
+        var wrap = document.createElement("div");
+        wrap.className = "globos";
+        document.body.appendChild(wrap);
+        for (var i = 0; i < 18; i++) {
+          var g = document.createElement("span");
+          var s = 44 + Math.random() * 40;
+          g.className = "globo";
+          g.style.cssText = "left:" + (Math.random() * 92) + "%;width:" + s + "px;height:" + (s * 1.2) + "px;background:" +
+            cols[i % cols.length] + ";animation-duration:" + (5 + Math.random() * 4) + "s;animation-delay:" + (Math.random() * 1.2) + "s";
+          wrap.appendChild(g);
+        }
+        setTimeout(function () { wrap.remove(); }, 10500);
+      }
+
+      // Ingresar
+      $("entrar").addEventListener("click", function () {
+        audio.volume = 0.6;
+        audio.play().then(function () { setMusica(true); }).catch(function () { setMusica(false); });
+        toggle.hidden = false;
+        document.body.classList.remove("locked");
+        intro.classList.add("fuera");
+        window.scrollTo(0, 0);
+        globos();
+        setTimeout(function () { intro.hidden = true; }, 900);
+      });
+
+      // Formulario (Netlify Forms)
+      $("rsvp").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var form = e.target, estado = $("estado"), btn = form.querySelector("button[type=submit]");
+        var data = new FormData(form), nombre = data.get("nombre"), va = data.get("asistencia") === "Sí";
+        btn.disabled = true;
+        fetch("/", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams(data).toString()
+        }).then(function (r) {
+          if (!r.ok) throw new Error("fallo");
+          estado.textContent = va ? "¡Gracias, " + nombre + "! Tu confirmación ya llegó. ¡Nos vemos pronto!" : "Gracias por avisarnos, " + nombre + ". ¡Te vamos a extrañar!";
+          estado.className = "estado ok";
+          estado.hidden = false;
+          form.querySelectorAll("input,select,textarea,button").forEach(function (el) { el.disabled = true; });
+        }).catch(function () {
+          estado.textContent = "No pudimos enviarlo. Probá de nuevo o confirmá por WhatsApp.";
+          estado.className = "estado error";
+          estado.hidden = false;
+          btn.disabled = false;
+        });
+      });
+    </script>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg: #fff7f5; --card: #ffffff; --ink: #5e4540; --marron: #8a665e;
+    --rosa: #f08aa4; --rosa-osc: #d44d73; --rosa-claro: #fde3e8; --borde: #f7cdd6;
+    color-scheme: light;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: Lora, Georgia, serif; font-size: 1.05rem; line-height: 1.65; }
+  body.locked { overflow: hidden; height: 100%; }
+  main { max-width: 34rem; margin: 0 auto; padding: 1rem 1.25rem 4rem; text-align: center; }
+
+  .nombre { font-family: "Kaushan Script", cursive; font-weight: 400; color: var(--rosa); line-height: 1.05; margin: .25rem 0; text-wrap: balance; }
+  .sub { font-size: 1.5rem; color: var(--marron); margin: .25rem 0 1rem; }
+  .heart { color: var(--rosa); font-size: .8em; margin: 0 .35rem; }
+  .osito { display: block; margin: 0 auto; width: min(74vw, 320px); height: auto; mix-blend-mode: multiply; }
+  .kicker { margin: .5rem 0 0; color: var(--marron); font-style: italic; }
+  .lead { max-width: 24rem; margin: 0 auto; }
+
+  /* Bienvenida */
+  .intro { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 1.5rem; text-align: center; overflow-y: auto;
+    background: radial-gradient(circle at 15% 10%, #ffe6ec 0, transparent 45%), radial-gradient(circle at 90% 90%, #fde3e8 0, transparent 45%), var(--bg);
+    transition: opacity .8s ease; }
+  .intro.fuera { opacity: 0; pointer-events: none; }
+  .intro .nombre { font-size: clamp(2.8rem, 14vw, 4.5rem); }
+  .nota { margin: 1rem 0 0; font-size: .9rem; color: var(--marron); }
+  .hero { padding: 1.5rem 0 1rem; }
+  .hero .nombre { font-size: clamp(2.6rem, 13vw, 4rem); }
+
+  /* Tarjetas */
+  .card { background: var(--card); border: 2px solid var(--borde); border-radius: 1.75rem; padding: 1.5rem 1.25rem; margin: 1.25rem 0; }
+  .card h3 { font-family: "Kaushan Script", cursive; font-weight: 400; font-size: 1.9rem; color: var(--rosa); margin: 0 0 .5rem; }
+  .card p { margin: .25rem 0; }
+  .grande { font-size: 1.3rem; font-weight: 600; color: var(--marron); }
+  .peq { font-size: .95rem; color: var(--marron); }
+  .cap { margin: 0 0 .5rem; font-style: italic; color: var(--marron); }
+  .tiempo { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+  .tiempo div { background: var(--rosa-claro); border-radius: 1rem; padding: .75rem .25rem; }
+  .tiempo b { display: block; font-size: 1.9rem; line-height: 1.1; color: var(--rosa-osc); font-variant-numeric: tabular-nums; }
+  .tiempo span { font-size: .85rem; color: var(--marron); }
+
+  /* Mapa y botones */
+  .mapa { margin: 1rem 0; border-radius: 1.25rem; overflow: hidden; border: 2px solid var(--borde); aspect-ratio: 4 / 3; }
+  .mapa iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .btns { display: flex; flex-wrap: wrap; gap: .75rem; justify-content: center; }
+  .btn { display: inline-block; font: inherit; font-weight: 600; cursor: pointer; text-decoration: none; padding: .8rem 1.6rem; border-radius: 999px;
+    background: var(--rosa-osc); color: #fff; border: 2px solid var(--rosa-osc); margin-top: .75rem; }
+  .btn.alt { background: transparent; color: var(--rosa-osc); }
+  .btn:disabled { opacity: .6; cursor: default; }
+  .btn:focus-visible, .toggle:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--rosa); outline-offset: 3px; }
+
+  /* Formulario */
+  form { text-align: left; margin-top: 1rem; }
+  form label { display: block; margin: 1rem 0 .25rem; font-weight: 600; }
+  form input[type=text], select, textarea { width: 100%; font: inherit; padding: .7rem .9rem; border-radius: .9rem; border: 2px solid var(--borde); background: #fffdfd; color: var(--ink); }
+  fieldset { border: 0; padding: 0; margin: 1rem 0 0; }
+  legend { font-weight: 600; padding: 0; }
+  .op { display: inline-flex !important; align-items: center; gap: .4rem; margin: .5rem 1.25rem 0 0 !important; font-weight: 400 !important; }
+  .op input { accent-color: var(--rosa-osc); width: 1.15rem; height: 1.15rem; }
+  form .btn { width: 100%; margin-top: 1.5rem; }
+  .estado { margin-top: 1rem; padding: .8rem 1rem; border-radius: 1rem; text-align: center; }
+  .estado.ok { background: #e6f5ea; color: #245a37; }
+  .estado.error { background: #fde8e8; color: #8a2b2b; }
+
+  .foot { margin-top: 2.5rem; color: var(--marron); }
+  .foot a { color: var(--rosa-osc); }
+
+  /* Música */
+  .toggle { position: fixed; right: max(1rem, env(safe-area-inset-right, 0px)); bottom: max(1rem, env(safe-area-inset-bottom, 0px)); z-index: 40;
+    display: flex; align-items: center; gap: .4rem; font: inherit; font-size: .9rem; padding: .55rem 1rem; border-radius: 999px;
+    background: #fff; color: var(--marron); border: 2px solid var(--borde); cursor: pointer; }
+  .toggle.on .ico { color: var(--rosa-osc); }
+
+  /* Globos */
+  .globos { position: fixed; inset: 0; z-index: 60; pointer-events: none; overflow: hidden; }
+  .globo { position: absolute; bottom: -120px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; opacity: .92; animation: subir linear forwards; }
+  .globo::after { content: ""; position: absolute; top: 100%; left: 50%; width: 1px; height: 46px; background: #c9a0a0; }
+  @keyframes subir { to { transform: translate(24px, -135vh); } }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .intro { transition: none; } }
+</style>
