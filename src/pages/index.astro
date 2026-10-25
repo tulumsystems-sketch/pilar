@@ -8,8 +8,11 @@ const D = {
   coordenadas: "-31.5511773,-68.562239",
   whatsapp: "5492645477725",
   confirmarAntesDe: "4 de noviembre",
-  firma: "Con mucho cariño",
+  firma: "Con mucho cariño, Papá y Mamá",
   musica: "/musica.mp3",
+  // Pegá acá la URL que termina en /exec (Apps Script > Implementar)
+  sheetsUrl: "https://script.google.com/macros/s/AKfycbzIFIgPF3qT9wa8ywS7KnggpX4Z5Ab5pm0HUp0mYRmiusHRN7kaEulnRuEz6o3Ed5U0/exec",
+  cupoGenerico: 1, // personas permitidas si alguien entra sin su link personal
 };
 
 const fecha = new Date(D.fecha);
@@ -34,8 +37,7 @@ const wsp = "https://wa.me/" + D.whatsapp;
     <title>Baby Shower de {D.nombre}</title>
     <meta property="og:title" content={`Baby Shower de ${D.nombre}`} />
     <meta property="og:description" content={`${cuando}, ${hora} hs · ${D.lugar}`} />
-    <!-- Cuando tengas el link de Netlify, cambiá por https://TU-SITIO.netlify.app/osito.jpg -->
-    <meta property="og:image" content="/osito.jpg" />
+    <meta property="og:image" content="https://pilar-invitacion.netlify.app/osito.jpg" />
     <meta name="theme-color" content="#fff7f5" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
@@ -49,9 +51,9 @@ const wsp = "https://wa.me/" + D.whatsapp;
     <!-- Pantalla de bienvenida -->
     <section id="intro" class="intro">
       <img class="osito" src="/osito.jpg" alt="Osita con moño rosa y globos" />
-      <p class="kicker">Estás invitada/o al</p>
-      <p class="sub"><span class="heart">♥</span> Baby Shower <span class="heart">♥</span></p>
+      <p class="kicker">Estás invitada al</p>
       <h1 class="nombre">{D.nombre}</h1>
+      <p class="sub"><span class="heart">♥</span> Baby Shower <span class="heart">♥</span></p>
       <button id="entrar" class="btn" type="button">Ingresar</button>
       <p class="nota">Esta invitación tiene música</p>
     </section>
@@ -100,11 +102,18 @@ const wsp = "https://wa.me/" + D.whatsapp;
 
       <section class="card" id="confirmar">
         <h3>Confirmá tu asistencia</h3>
+        <p id="saludo" class="grande" hidden></p>
+        <p id="cupoTxt" class="peq"></p>
         <p class="peq">Avisanos antes del {D.confirmarAntesDe}.</p>
 
-        <form id="rsvp" name="rsvp" method="POST" data-netlify="true" netlify-honeypot="bot-field">
-          <input type="hidden" name="form-name" value="rsvp" />
-          <p hidden><label>No completar <input name="bot-field" /></label></p>
+        <p id="cargando" class="peq" hidden>Cargando tu invitación…</p>
+        <p id="invalido" class="estado error" hidden>
+          Este link no es válido. <a href={wsp} target="_blank" rel="noopener">Escribinos por WhatsApp</a> y te mandamos el correcto.
+        </p>
+
+        <form id="rsvp">
+          <input type="hidden" id="codigo" name="codigo" />
+          <p hidden><label>No completar <input id="web" name="web" autocomplete="off" /></label></p>
 
           <label for="nom">Tu nombre</label>
           <input id="nom" name="nombre" type="text" autocomplete="name" required />
@@ -115,15 +124,16 @@ const wsp = "https://wa.me/" + D.whatsapp;
             <label class="op"><input type="radio" name="asistencia" value="No" /> No puedo</label>
           </fieldset>
 
-          <label for="cant">¿Cuántas personas son?</label>
-          <select id="cant" name="personas">
-            <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
-          </select>
+          <div id="bloqueCant" hidden>
+            <label for="cant">¿Cuántas personas van? <span id="tope"></span></label>
+            <select id="cant" name="personas"></select>
+          </div>
 
           <label for="msj">Un mensaje para la mamá y el bebé (opcional)</label>
           <textarea id="msj" name="mensaje" rows="3"></textarea>
 
-          <button class="btn" type="submit">Enviar confirmación</button>
+          <button id="enviar" class="btn" type="submit">Enviar confirmación</button>
+          <p id="previa" class="peq" hidden>Ya respondiste. Si algo cambió, podés actualizar tu respuesta.</p>
           <p id="estado" class="estado" role="status" hidden></p>
         </form>
       </section>
@@ -134,7 +144,7 @@ const wsp = "https://wa.me/" + D.whatsapp;
       </footer>
     </main>
 
-    <script define:vars={{ fechaISO: D.fecha, titulo: "Baby Shower de " + D.nombre, lugarCompleto: D.lugar + ", " + D.direccion }}>
+    <script define:vars={{ fechaISO: D.fecha, titulo: "Baby Shower de " + D.nombre, lugarCompleto: D.lugar + ", " + D.direccion, sheetsUrl: D.sheetsUrl, cupoGenerico: D.cupoGenerico }}>
       var $ = function (id) { return document.getElementById(id); };
       var audio = $("musica"), toggle = $("toggle"), intro = $("intro");
       var fecha = new Date(fechaISO);
@@ -198,28 +208,105 @@ const wsp = "https://wa.me/" + D.whatsapp;
         setTimeout(function () { intro.hidden = true; }, 900);
       });
 
-      // Formulario (Netlify Forms)
-      $("rsvp").addEventListener("submit", function (e) {
+      // Invitación personalizada (?i=codigo) + Google Sheets
+      var form = $("rsvp"), estado = $("estado");
+      var codigo = (new URLSearchParams(location.search).get("i") || "").trim().toLowerCase();
+      var cupos = cupoGenerico;
+      var hayUrl = sheetsUrl.indexOf("http") === 0;
+
+      function armarCupos(n) {
+        var sel = $("cant");
+        sel.innerHTML = "";
+        for (var i = 1; i <= n; i++) {
+          var o = document.createElement("option");
+          o.value = i; o.textContent = i;
+          sel.appendChild(o);
+        }
+        $("tope").textContent = n > 1 ? "(hasta " + n + ")" : "";
+        actualizarCant();
+      }
+      function actualizarCant() {
+        var va = form.elements["asistencia"].value === "Sí";
+        $("bloqueCant").hidden = !va || cupos <= 1;
+      }
+      form.querySelectorAll("input[name=asistencia]").forEach(function (r) { r.addEventListener("change", actualizarCant); });
+
+      armarCupos(cupos);
+      $("cupoTxt").textContent = cupos > 1 ? "" : "Tu invitación es personal.";
+
+      if (codigo && hayUrl) {
+        $("codigo").value = codigo;
+        form.hidden = true;
+        $("cargando").hidden = false;
+        fetch(sheetsUrl + "?i=" + encodeURIComponent(codigo))
+          .then(function (r) { return r.json(); })
+          .then(function (j) {
+            $("cargando").hidden = true;
+            if (!j.ok) { $("invalido").hidden = false; return; }
+            cupos = j.cupos;
+            $("saludo").textContent = "¡Hola, " + j.nombre + "!";
+            $("saludo").hidden = false;
+            $("cupoTxt").textContent = cupos > 1 ? "Tu invitación es para hasta " + cupos + " personas." : "Tu invitación es personal.";
+            $("nom").value = j.nombre;
+            armarCupos(cupos);
+            var p = j.respuesta;
+            if (p) {
+              $("nom").value = p.nombre || j.nombre;
+              form.elements["asistencia"].value = p.asistencia === "No" ? "No" : "Sí";
+              if (p.personas) $("cant").value = p.personas;
+              $("msj").value = p.mensaje || "";
+              $("previa").hidden = false;
+              $("enviar").textContent = "Actualizar respuesta";
+              actualizarCant();
+            }
+            form.hidden = false;
+          })
+          .catch(function () {
+            $("cargando").hidden = true;
+            cupos = 5; armarCupos(cupos); // el servidor igual respeta el cupo real
+            form.hidden = false;
+          });
+      }
+
+      form.addEventListener("submit", function (e) {
         e.preventDefault();
-        var form = e.target, estado = $("estado"), btn = form.querySelector("button[type=submit]");
-        var data = new FormData(form), nombre = data.get("nombre"), va = data.get("asistencia") === "Sí";
+        if ($("web").value) return; // trampa para bots
+        var btn = $("enviar");
+        var va = form.elements["asistencia"].value === "Sí";
+        var nombre = $("nom").value.trim();
+        var payload = {
+          codigo: codigo,
+          nombre: nombre,
+          asistencia: va ? "Sí" : "No",
+          personas: va ? parseInt($("cant").value || "1", 10) : 0,
+          mensaje: $("msj").value.trim()
+        };
+        if (!hayUrl) {
+          estado.textContent = "Falta conectar la planilla. Confirmá por WhatsApp mientras tanto.";
+          estado.className = "estado error"; estado.hidden = false; return;
+        }
         btn.disabled = true;
-        fetch("/", {
+        fetch(sheetsUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams(data).toString()
-        }).then(function (r) {
-          if (!r.ok) throw new Error("fallo");
-          estado.textContent = va ? "¡Gracias, " + nombre + "! Tu confirmación ya llegó. ¡Nos vemos pronto!" : "Gracias por avisarnos, " + nombre + ". ¡Te vamos a extrañar!";
-          estado.className = "estado ok";
-          estado.hidden = false;
-          form.querySelectorAll("input,select,textarea,button").forEach(function (el) { el.disabled = true; });
-        }).catch(function () {
-          estado.textContent = "No pudimos enviarlo. Probá de nuevo o confirmá por WhatsApp.";
-          estado.className = "estado error";
-          estado.hidden = false;
-          btn.disabled = false;
-        });
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(payload)
+        }).then(function (r) { return r.json(); })
+          .then(function (j) {
+            if (!j.ok) throw new Error(j.error || "fallo");
+            estado.textContent = va
+              ? "¡Gracias, " + nombre + "! Tu confirmación ya llegó. ¡Nos vemos pronto!"
+              : "Gracias por avisarnos, " + nombre + ". ¡Te vamos a extrañar!";
+            estado.className = "estado ok";
+            estado.hidden = false;
+            btn.textContent = "Actualizar respuesta";
+            $("previa").hidden = false;
+          })
+          .catch(function () {
+            estado.textContent = "No pudimos enviarlo. Probá de nuevo o confirmá por WhatsApp.";
+            estado.className = "estado error";
+            estado.hidden = false;
+          })
+          .then(function () { btn.disabled = false; });
       });
     </script>
   </body>
@@ -239,6 +326,7 @@ const wsp = "https://wa.me/" + D.whatsapp;
   body { margin: 0; background: var(--bg); color: var(--ink); font-family: Lora, Georgia, serif; font-size: 1.05rem; line-height: 1.65; }
   body.locked { overflow: hidden; height: 100%; }
   main { max-width: 34rem; margin: 0 auto; padding: 1rem 1.25rem 4rem; text-align: center; }
+  [hidden] { display: none !important; }
 
   .nombre { font-family: "Kaushan Script", cursive; font-weight: 400; color: var(--rosa); line-height: 1.05; margin: .25rem 0; text-wrap: balance; }
   .sub { font-size: 1.5rem; color: var(--marron); margin: .25rem 0 1rem; }
@@ -289,9 +377,11 @@ const wsp = "https://wa.me/" + D.whatsapp;
   .op { display: inline-flex !important; align-items: center; gap: .4rem; margin: .5rem 1.25rem 0 0 !important; font-weight: 400 !important; }
   .op input { accent-color: var(--rosa-osc); width: 1.15rem; height: 1.15rem; }
   form .btn { width: 100%; margin-top: 1.5rem; }
+  form #previa { text-align: center; }
   .estado { margin-top: 1rem; padding: .8rem 1rem; border-radius: 1rem; text-align: center; }
   .estado.ok { background: #e6f5ea; color: #245a37; }
   .estado.error { background: #fde8e8; color: #8a2b2b; }
+  .estado a { color: inherit; }
 
   .foot { margin-top: 2.5rem; color: var(--marron); }
   .foot a { color: var(--rosa-osc); }
