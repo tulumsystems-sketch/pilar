@@ -16,7 +16,7 @@ const D = {
 };
 
 const fecha = new Date(D.fecha);
-const fin = new Date(fecha.getTime() + 3 * 3600000);
+const fin = new Date(fecha.getTime() + 4 * 3600000);
 const tz = "America/Argentina/San_Juan";
 const optsHora = { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz };
 const dia = fecha.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: tz });
@@ -151,7 +151,7 @@ const wsp = "https://wa.me/" + D.whatsapp;
 
       // Calendario
       function fmt(d) { return d.toISOString().replace(/[-:]|\.\d{3}/g, ""); }
-      var fin = new Date(fecha.getTime() + 3 * 3600000);
+      var fin = new Date(fecha.getTime() + 4 * 3600000);
       $("cal").href = "https://calendar.google.com/calendar/render?action=TEMPLATE&text=" + encodeURIComponent(titulo) +
         "&dates=" + fmt(fecha) + "/" + fmt(fin) + "&location=" + encodeURIComponent(lugarCompleto);
 
